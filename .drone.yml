@@ -1,0 +1,49 @@
+---
+kind: pipeline
+type: docker
+name: default
+
+# remove this section if your CPU is amd64
+platform:
+  os: linux
+  arch: arm64
+
+steps:
+  - name: java-test
+    image: kameshsampath/drone-java-maven-plugin:v1.0.3
+    pull: if-not-exists
+    settings:
+      goals:
+        - clean
+        - test
+   
+  - name: java-build
+    image: kameshsampath/drone-java-maven-plugin:v1.0.3
+    pull: if-not-exists
+    settings:
+      goals:
+        - -DskipTests
+        - clean
+        - install
+      
+  - name: build-image
+    image: gcr.io/kaniko-project/executor:debug
+    pull: if-not-exists
+    commands:
+      - >
+        /kaniko/executor
+        --context /drone/src
+        --dockerfile $DOCKER_FILE 
+        --customPlatform=linux/amd64
+        --customPlatform=linux/arm64
+        --destination $DESTINATION_IMAGE
+        --digest-file /tmp/images/image-digest
+        --insecure
+        --skip-tls-verify
+    volumes:
+      - name: digest-folder
+        path: /tmp/images
+
+volumes:
+  - name: digest-folder
+    temp: {}
